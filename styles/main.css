@@ -280,7 +280,7 @@ body.light-mode #portrait-frame {
     flex-direction: column;
     max-height: none;
     border-top: none;
-    opacity: 0.3;
+    opacity: 0.15;
     pointer-events: none;
   }
   .canvas-wrapper {
