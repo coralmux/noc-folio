@@ -81,7 +81,7 @@ const STRINGS: Record<Lang, {
     inputTooLong: '메시지가 너무 깁니다 (2000자 이하).',
     formTitle: '연락 정보',
     formName: '이름 / 회사',
-    formNamePlaceholder: '예) 홍길동 / 네이버',
+    formNamePlaceholder: '이름 또는 회사명',
     formEmail: '이메일',
     formEmailPlaceholder: 'you@example.com',
     formKind: '분류',
@@ -108,7 +108,7 @@ const STRINGS: Record<Lang, {
     inputTooLong: 'Message is too long (max 2000 characters).',
     formTitle: 'Contact details',
     formName: 'Name / Company',
-    formNamePlaceholder: 'e.g., Jane Doe / Naver',
+    formNamePlaceholder: 'Your name or company',
     formEmail: 'Email',
     formEmailPlaceholder: 'you@example.com',
     formKind: 'Category',
@@ -562,13 +562,14 @@ export class AIChatModal {
     if (
       summary.length < 15 ||
       distinctChars < 5 ||
-      !/[a-zA-Z가-힣]{2,}/.test(summary)
+      !/[a-zA-Z가-힣]{2,}/.test(summary) ||
+      /(.)\1{3,}/.test(summary)
     ) {
       this.formErrorEl.textContent = this.t('formInvalidSummary');
       this.formSummaryInput.focus();
       return;
     }
-    if (name && (name.length < 2 || /^(.)\1*$/.test(name))) {
+    if (name && (name.length < 2 || /^(.)\1*$/.test(name) || /(.)\1{3,}/.test(name))) {
       this.formErrorEl.textContent = this.t('formInvalidName');
       this.formNameInput.focus();
       return;
@@ -751,7 +752,7 @@ export class AIChatModal {
       this.addMessage('ai', reply);
       this.history.push({ role: 'model', text: reply });
       if (data.form) {
-        this.showForm(data.form.kind, data.form.summary);
+        this.showForm('personal', data.form.summary);
       }
       if (data.submitted) {
         this.submitted = true;
