@@ -66,6 +66,7 @@ const STRINGS: Record<Lang, {
   formInvalidName: string;
   formRequireCorpEmail: string;
   sending: string;
+  forwardingToSecretary: string;
 }> = {
   ko: {
     title: 'AI Assistant',
@@ -92,6 +93,7 @@ const STRINGS: Record<Lang, {
     formInvalidName: '이름/회사를 정확히 입력해주세요.',
     formRequireCorpEmail: '채용/업무 문의는 회사 이메일을 사용해주세요. 개인 메일(gmail 등)은 받지 않습니다.',
     sending: '전송 중...',
+    forwardingToSecretary: '메인비서님에게 전달했습니다. 답변을 기다려주세요.',
   },
   en: {
     title: 'AI Assistant',
@@ -118,6 +120,7 @@ const STRINGS: Record<Lang, {
     formInvalidName: 'Please enter a valid name/company.',
     formRequireCorpEmail: 'Please use your company email for recruiting/business inquiries. Free providers (gmail, etc.) are not accepted.',
     sending: 'Sending...',
+    forwardingToSecretary: 'Forwarded to the main secretary. Please wait for a response.',
   },
 };
 
@@ -577,6 +580,9 @@ export class AIChatModal {
 
     this.formErrorEl.textContent = '';
     this.setFormBusy(true);
+    this.hideForm();
+    this.addMessage('ai', this.t('forwardingToSecretary'));
+    const thinking = this.addTypingIndicator();
 
     try {
       const res = await fetch(AIChatModal.ENDPOINT, {
@@ -588,20 +594,43 @@ export class AIChatModal {
           contact: { email, kind, name: name || undefined, summary },
         }),
       });
-      const data = (await res.json()) as { reply?: string; submitted?: boolean; error?: string };
+      const data = (await res.json()) as {
+        reply?: string;
+        submitted?: boolean;
+        rejected?: boolean;
+        error?: string;
+      };
+      thinking.remove();
+
       if (data.submitted) {
-        this.hideForm();
         this.addMessage('ai', data.reply ?? '');
         this.history.push({ role: 'model', text: data.reply ?? '' });
         this.submitted = true;
         this.newChatBtn.style.display = 'inline-block';
         this.setBusy(false);
+      } else if (data.rejected) {
+        this.addMessage('ai', data.reply ?? this.t('connectionError'));
+        this.history.push({ role: 'model', text: data.reply ?? '' });
+        this.busy = false;
+        this.showForm(kind, summary);
+        this.formNameInput.value = name;
+        this.formEmailInput.value = email;
+        this.setFormBusy(false);
       } else {
-        this.formErrorEl.textContent = data.reply ?? data.error ?? this.t('connectionError');
+        this.addMessage('ai', data.reply ?? data.error ?? this.t('connectionError'));
+        this.busy = false;
+        this.showForm(kind, summary);
+        this.formNameInput.value = name;
+        this.formEmailInput.value = email;
         this.setFormBusy(false);
       }
     } catch {
-      this.formErrorEl.textContent = this.t('connectionError');
+      thinking.remove();
+      this.addMessage('ai', this.t('connectionError'));
+      this.busy = false;
+      this.showForm(kind, summary);
+      this.formNameInput.value = name;
+      this.formEmailInput.value = email;
       this.setFormBusy(false);
     }
   }
