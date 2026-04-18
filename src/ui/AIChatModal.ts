@@ -94,7 +94,7 @@ const STRINGS: Record<Lang, {
     formInvalidName: '이름/회사를 정확히 입력해주세요.',
     formRequireCorpEmail: '채용/업무 문의는 회사 이메일을 사용해주세요. 개인 메일(gmail 등)은 받지 않습니다.',
     sending: '전송 중...',
-    forwardingToSecretary: '메인비서님에게 전달했습니다. 답변을 기다려주세요.',
+    forwardingToSecretary: '중간비서님에게 전달했습니다. 답변을 기다려주세요.',
   },
   en: {
     title: 'AI Assistant',
@@ -121,7 +121,7 @@ const STRINGS: Record<Lang, {
     formInvalidName: 'Please enter a valid name/company.',
     formRequireCorpEmail: 'Please use your company email for recruiting/business inquiries. Free providers (gmail, etc.) are not accepted.',
     sending: 'Sending...',
-    forwardingToSecretary: 'Forwarded to the main secretary. Please wait for a response.',
+    forwardingToSecretary: 'Forwarded to the mid secretary. Please wait for a response.',
   },
 };
 
