@@ -3,6 +3,27 @@ type Lang = 'ko' | 'en';
 
 type Kind = 'recruiter' | 'business' | 'collaboration' | 'networking' | 'other';
 
+const CORP_REQUIRED_KINDS: ReadonlySet<Kind> = new Set(['recruiter', 'business']);
+
+const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
+  'gmail.com', 'googlemail.com',
+  'yahoo.com', 'yahoo.co.jp', 'yahoo.co.kr', 'ymail.com',
+  'naver.com', 'daum.net', 'hanmail.net', 'nate.com', 'kakao.com',
+  'hotmail.com', 'outlook.com', 'live.com', 'msn.com',
+  'icloud.com', 'me.com', 'mac.com',
+  'aol.com',
+  'proton.me', 'protonmail.com', 'pm.me',
+  'yandex.com', 'yandex.ru',
+  'mail.com', 'mail.ru', 'gmx.com', 'gmx.de',
+  'zoho.com', 'fastmail.com', 'tutanota.com',
+  'qq.com', '163.com', '126.com', 'sina.com', 'sohu.com',
+]);
+
+function isFreeEmail(email: string): boolean {
+  const parts = email.toLowerCase().split('@');
+  return parts.length === 2 && FREE_EMAIL_DOMAINS.has(parts[1]);
+}
+
 const KIND_LABELS: Record<Lang, Record<Kind, string>> = {
   ko: {
     recruiter: '헤드헌팅 / 채용',
@@ -42,6 +63,8 @@ const STRINGS: Record<Lang, {
   formSend: string;
   formInvalidEmail: string;
   formInvalidSummary: string;
+  formInvalidName: string;
+  formRequireCorpEmail: string;
   sending: string;
 }> = {
   ko: {
@@ -65,7 +88,9 @@ const STRINGS: Record<Lang, {
     formCancel: '취소',
     formSend: '전송',
     formInvalidEmail: '올바른 이메일을 입력해주세요.',
-    formInvalidSummary: '용건을 3자 이상 입력해주세요.',
+    formInvalidSummary: '용건을 15자 이상 구체적으로 입력해주세요.',
+    formInvalidName: '이름/회사를 정확히 입력해주세요.',
+    formRequireCorpEmail: '채용/업무 문의는 회사 이메일을 사용해주세요. 개인 메일(gmail 등)은 받지 않습니다.',
     sending: '전송 중...',
   },
   en: {
@@ -89,7 +114,9 @@ const STRINGS: Record<Lang, {
     formCancel: 'Cancel',
     formSend: 'Send',
     formInvalidEmail: 'Please enter a valid email.',
-    formInvalidSummary: 'Summary must be at least 3 characters.',
+    formInvalidSummary: 'Please describe your request in at least 15 meaningful characters.',
+    formInvalidName: 'Please enter a valid name/company.',
+    formRequireCorpEmail: 'Please use your company email for recruiting/business inquiries. Free providers (gmail, etc.) are not accepted.',
     sending: 'Sending...',
   },
 };
@@ -516,14 +543,35 @@ export class AIChatModal {
     const name = this.formNameInput.value.trim();
     const kind = this.formKindSelect.value as Kind;
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const emailMatch = email.match(/^([^\s@]+)@([^\s@]+)\.([^\s@]{2,})$/);
+    const emailOk =
+      !!emailMatch &&
+      emailMatch[1].length >= 2 && !/^(.)\1*$/.test(emailMatch[1]) &&
+      emailMatch[2].length >= 2 && !/^(.)\1*$/.test(emailMatch[2]);
+    if (!emailOk) {
       this.formErrorEl.textContent = this.t('formInvalidEmail');
       this.formEmailInput.focus();
       return;
     }
-    if (summary.length < 3) {
+    const summaryCompact = summary.replace(/\s+/g, '');
+    const distinctChars = new Set(summaryCompact).size;
+    if (
+      summary.length < 15 ||
+      distinctChars < 5 ||
+      !/[a-zA-Z가-힣]{2,}/.test(summary)
+    ) {
       this.formErrorEl.textContent = this.t('formInvalidSummary');
       this.formSummaryInput.focus();
+      return;
+    }
+    if (name && (name.length < 2 || /^(.)\1*$/.test(name))) {
+      this.formErrorEl.textContent = this.t('formInvalidName');
+      this.formNameInput.focus();
+      return;
+    }
+    if (CORP_REQUIRED_KINDS.has(kind) && isFreeEmail(email)) {
+      this.formErrorEl.textContent = this.t('formRequireCorpEmail');
+      this.formEmailInput.focus();
       return;
     }
 
