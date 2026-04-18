@@ -1,8 +1,9 @@
 type ChatTurn = { role: 'user' | 'model'; text: string };
 type Lang = 'ko' | 'en';
 
-type Kind = 'recruiter' | 'business' | 'collaboration' | 'networking' | 'other';
+type Kind = 'personal' | 'business' | 'collaboration' | 'networking' | 'recruiter';
 
+const KIND_ORDER: Kind[] = ['personal', 'business', 'collaboration', 'networking', 'recruiter'];
 const CORP_REQUIRED_KINDS: ReadonlySet<Kind> = new Set(['recruiter', 'business']);
 
 const FREE_EMAIL_DOMAINS: ReadonlySet<string> = new Set([
@@ -26,18 +27,18 @@ function isFreeEmail(email: string): boolean {
 
 const KIND_LABELS: Record<Lang, Record<Kind, string>> = {
   ko: {
-    recruiter: '헤드헌팅 / 채용',
+    personal: '개인 문의',
     business: '비즈니스 / 외주',
     collaboration: '협업 / 파트너십',
     networking: '네트워킹',
-    other: '기타',
+    recruiter: '헤드헌팅 / 채용',
   },
   en: {
-    recruiter: 'Recruiting / Hiring',
+    personal: 'Personal inquiry',
     business: 'Business / Consulting',
     collaboration: 'Collaboration / Partnership',
     networking: 'Networking',
-    other: 'Other',
+    recruiter: 'Recruiting / Hiring',
   },
 };
 
@@ -457,7 +458,7 @@ export class AIChatModal {
     this.formKindLabel.style.cssText = labelStyle;
     this.formKindSelect = document.createElement('select');
     this.formKindSelect.style.cssText = fieldStyle;
-    (['recruiter', 'business', 'collaboration', 'networking', 'other'] as Kind[]).forEach((k) => {
+    KIND_ORDER.forEach((k) => {
       const opt = document.createElement('option');
       opt.value = k;
       this.formKindSelect.appendChild(opt);
@@ -524,7 +525,7 @@ export class AIChatModal {
     this.formNameInput.value = '';
     this.formEmailInput.value = '';
     this.formSummaryInput.value = summary;
-    this.formKindSelect.value = kind;
+    this.formKindSelect.value = KIND_ORDER.includes(kind) ? kind : 'personal';
     this.formErrorEl.textContent = '';
     this.applyLangLabels();
     this.inputArea.style.display = 'none';
