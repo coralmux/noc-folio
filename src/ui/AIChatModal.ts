@@ -1,9 +1,16 @@
+type ChatTurn = { role: 'user' | 'model'; text: string };
+
 export class AIChatModal {
   private overlay: HTMLDivElement;
   private panel: HTMLDivElement;
   private messagesArea: HTMLDivElement;
   private inputField: HTMLInputElement;
+  private sendBtn!: HTMLButtonElement;
   private visible = false;
+  private busy = false;
+  private submitted = false;
+  private history: ChatTurn[] = [];
+  private static readonly ENDPOINT = 'https://noc-folio-agent.lynnij.workers.dev/';
 
   constructor(parentOverlay: HTMLElement) {
     // Fullscreen semi-transparent overlay
@@ -127,9 +134,9 @@ export class AIChatModal {
       if (e.key === 'Enter') this.handleSend();
     });
 
-    const sendBtn = document.createElement('button');
-    sendBtn.textContent = '▶';
-    sendBtn.style.cssText = `
+    this.sendBtn = document.createElement('button');
+    this.sendBtn.textContent = '▶';
+    this.sendBtn.style.cssText = `
       background: #1a2a1a;
       border: 1px solid #61c777;
       border-radius: 4px;
@@ -140,18 +147,19 @@ export class AIChatModal {
       cursor: pointer;
       transition: all 0.15s;
     `;
-    sendBtn.addEventListener('mouseenter', () => {
-      sendBtn.style.background = '#243a24';
-      sendBtn.style.borderColor = '#71d787';
+    this.sendBtn.addEventListener('mouseenter', () => {
+      if (this.busy) return;
+      this.sendBtn.style.background = '#243a24';
+      this.sendBtn.style.borderColor = '#71d787';
     });
-    sendBtn.addEventListener('mouseleave', () => {
-      sendBtn.style.background = '#1a2a1a';
-      sendBtn.style.borderColor = '#61c777';
+    this.sendBtn.addEventListener('mouseleave', () => {
+      this.sendBtn.style.background = '#1a2a1a';
+      this.sendBtn.style.borderColor = '#61c777';
     });
-    sendBtn.addEventListener('click', () => this.handleSend());
+    this.sendBtn.addEventListener('click', () => this.handleSend());
 
     inputArea.appendChild(this.inputField);
-    inputArea.appendChild(sendBtn);
+    inputArea.appendChild(this.sendBtn);
 
     this.panel.appendChild(header);
     this.panel.appendChild(this.messagesArea);
@@ -170,7 +178,13 @@ export class AIChatModal {
     this.overlay.style.display = 'flex';
     this.messagesArea.innerHTML = '';
     this.inputField.value = '';
-    this.addMessage('ai', 'Hello! Feel free to ask anything about Dongha Geum.');
+    this.history = [];
+    this.submitted = false;
+    this.setBusy(false);
+    this.addMessage(
+      'ai',
+      '안녕하세요. 금동하님에게 전달할 용건을 알려주세요. (헤드헌팅 / 협업 / 업무 문의 등)'
+    );
     setTimeout(() => this.inputField.focus(), 100);
   }
 
@@ -202,14 +216,63 @@ export class AIChatModal {
     this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
   }
 
-  private handleSend(): void {
+  private async handleSend(): Promise<void> {
+    if (this.busy || this.submitted) return;
     const text = this.inputField.value.trim();
-    if (!text) return;
+    if (!text || text.length > 2000) return;
+
     this.addMessage('user', text);
+    this.history.push({ role: 'user', text });
     this.inputField.value = '';
-    // Stub response
-    setTimeout(() => {
-      this.addMessage('ai', 'AI integration is coming soon. Please contact coralmux@gmail.com for now.');
-    }, 400);
+    this.setBusy(true);
+
+    const thinking = this.addTypingIndicator();
+
+    try {
+      const res = await fetch(AIChatModal.ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: this.history }),
+      });
+      const data = (await res.json()) as { reply?: string; submitted?: boolean; error?: string };
+      thinking.remove();
+      const reply = data.reply ?? data.error ?? 'Error: no response';
+      this.addMessage('ai', reply);
+      this.history.push({ role: 'model', text: reply });
+      if (data.submitted) {
+        this.submitted = true;
+        this.inputField.placeholder = '전달 완료 — 추가 문의는 새 세션에서';
+      }
+    } catch {
+      thinking.remove();
+      this.addMessage('ai', 'Connection error. Please try again.');
+    } finally {
+      this.setBusy(false);
+      if (!this.submitted) this.inputField.focus();
+    }
+  }
+
+  private setBusy(busy: boolean): void {
+    this.busy = busy;
+    this.inputField.disabled = busy || this.submitted;
+    this.sendBtn.disabled = busy || this.submitted;
+    this.sendBtn.style.opacity = (busy || this.submitted) ? '0.4' : '1';
+    this.sendBtn.style.cursor = (busy || this.submitted) ? 'not-allowed' : 'pointer';
+  }
+
+  private addTypingIndicator(): HTMLDivElement {
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+      padding: 8px 12px;
+      border-radius: 6px;
+      align-self: flex-start;
+      background: #121a24;
+      color: #61c777;
+      border: 1px solid #1c2e1c;
+    `;
+    msg.textContent = '...';
+    this.messagesArea.appendChild(msg);
+    this.messagesArea.scrollTop = this.messagesArea.scrollHeight;
+    return msg;
   }
 }
